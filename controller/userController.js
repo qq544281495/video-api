@@ -1,4 +1,4 @@
-const User = require('../models/userSchema');
+const User = require('../models/userSchema'); // 用户数据模型
 const {signToken} = require('../util/jwt'); // 生成用户登录凭证
 const operate = require('../util/operate'); // 文件操作工具类
 
