@@ -1,6 +1,8 @@
 const User = require('../models/userSchema'); // 用户数据模型
+const Channel = require('../models/channelSchema'); // 频道数据模型
 const {signToken} = require('../util/jwt'); // 生成用户登录凭证
 const operate = require('../util/operate'); // 文件操作工具类
+const lodash = require('lodash');
 
 // 保存头像
 async function savePortrait(id, filename, originalname) {
@@ -91,6 +93,147 @@ module.exports = {
         savePortrait(_id, filename, originalname);
         response.status(200).json({data: {message: '头像修改成功'}});
       }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 订阅频道
+  subscribe: async (request, response) => {
+    try {
+      let userId = request.user._id;
+      let channelId = request.params.id;
+      if (userId === channelId) {
+        return response.status(401).json({error: '不能关注自己'});
+      }
+      let channelUser = await User.findById(channelId);
+      if (!channelUser) {
+        return response.status(404).json({error: '关注的频道不存在'});
+      }
+      let channel = await Channel.findOne({
+        user: userId,
+        channel: channelId,
+      });
+      if (channel) {
+        response.status(401).json({error: '你已关注此频道'});
+      } else {
+        await new Channel({
+          user: userId,
+          channel: channelId,
+        }).save();
+        channelUser.subscribers++;
+        await channelUser.save();
+        response.status(200).json({data: {message: '关注频道成功'}});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 取消订阅频道
+  unsubscribe: async (request, response) => {
+    try {
+      let userId = request.user._id;
+      let channelId = request.params.id;
+      if (userId === channelId) {
+        return response.status(401).json({error: '不能取关自己'});
+      }
+      let channelUser = await User.findById(channelId);
+      if (!channelUser) {
+        return response.status(404).json({error: '取关的频道不存在'});
+      }
+      let channel = await Channel.findOne({
+        user: userId,
+        channel: channelId,
+      });
+      if (channel) {
+        await Channel.findByIdAndDelete(channel._id);
+        channelUser.subscribers--;
+        await channelUser.save();
+        response.status(200).json({data: {message: '取关频道成功'}});
+      } else {
+        response.status(401).json({error: '你未订阅此频道'});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 获取频道详情
+  channelDetail: async (request, response) => {
+    try {
+      // 登录凭证（判断是否登录）
+      let certificate = request.user;
+      // 频道主ID
+      let channelId = request.params.id;
+      let subscriber = false;
+      const data = await User.findById(channelId);
+      if (!data) {
+        return response.status(404).json({error: '频道不存在'});
+      }
+      if (certificate) {
+        let userId = request.user._id;
+        const channel = await Channel.findOne({
+          user: userId,
+          channel: channelId,
+        });
+        if (channel) {
+          subscriber = true;
+        }
+      }
+      const channelInfo = lodash.pick(data, [
+        '_id',
+        'username',
+        'portrait',
+        'subscribers',
+      ]);
+      response.status(200).json({
+        data: {
+          ...channelInfo,
+          subscriber,
+        },
+      });
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 获取用户订阅频道列表
+  subscribeList: async (request, response) => {
+    try {
+      const id = request.params.id;
+      const user = await User.findById(id);
+      if (!user) {
+        return response.status(404).json({error: '用户不存在'});
+      }
+      const data = await Channel.find({
+        user: id,
+      }).populate('channel');
+      let subscribeList = data.map((item) => {
+        return lodash.pick(item.channel, [
+          '_id',
+          'username',
+          'portrait',
+          'subscribers',
+        ]);
+      });
+      response.status(200).json({data: subscribeList});
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 获取频道订阅列表
+  channelList: async (request, response) => {
+    try {
+      const {_id} = request.user;
+      const data = await Channel.find({
+        channel: _id,
+      }).populate('user');
+      let channelList = data.map((item) => {
+        return lodash.pick(item.user, [
+          '_id',
+          'username',
+          'portrait',
+          'subscribers',
+        ]);
+      });
+      response.status(200).json({data: channelList});
     } catch (error) {
       response.status(500).json({error: error.message});
     }

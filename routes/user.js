@@ -26,5 +26,19 @@ router.post(
   upload.single('portrait'),
   userController.portrait
 );
+// 订阅频道
+router.get('/subscribe/:id', verifyToken(), userController.subscribe);
+// 取消订阅频道
+router.get('/unsubscribe/:id', verifyToken(), userController.unsubscribe);
+// 获取频道详情
+router.get(
+  '/channelDetail/:id',
+  verifyToken(false),
+  userController.channelDetail
+);
+// 获取用户订阅频道列表
+router.get('/subscribeList/:id', userController.subscribeList);
+// 获取频道订阅用户列表
+router.get('/channelList', verifyToken(), userController.channelList);
 
 module.exports = router;
