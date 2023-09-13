@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const router = require('./routes/index');
+require('./config/db'); // 连接数据库
 
 const app = express();
 // 中间件

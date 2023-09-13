@@ -22,5 +22,7 @@ module.exports = {
   rules: {
     'space-before-function-paren': 'off',
     'linebreak-style': ['off', 'windows'],
+    'indent': 'off',
+    'trailing-comma': false,
   },
 };

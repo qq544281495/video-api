@@ -1,5 +1,8 @@
 {
   "semi": true,
   "singleQuote": true,
-  "bracketSpacing": false
+  "bracketSpacing": false,
+  "prettier.tabWidth": 2,
+  "quoteProps": "preserve",
+  "TrailingCooma": "all"
 }
