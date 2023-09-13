@@ -1,6 +1,7 @@
 const Video = require('../models/videoSchema'); // 视频数据模型
 const Comment = require('../models/commentSchema'); // 评论数据模型
 const Fond = require('../models/fondSchema'); // 喜爱视频数据模型
+const Channel = require('../models/channelSchema'); // 频道数据模型
 
 module.exports = {
   // 上传视频凭证
@@ -44,6 +45,22 @@ module.exports = {
         'user',
         '_id username portrait'
       );
+      data = data.toJSON();
+      const user = request.user;
+      if (user) {
+        const userId = user._id;
+        data.islike = false;
+        data.isdislike = false;
+        data.subscriber = false;
+        let fond = await Fond.findOne({user: userId, video: id});
+        let channel = await Channel.findOne({
+          user: userId,
+          channel: data.user._id,
+        });
+        if (channel) data.subscriber = true;
+        if (fond.fondStatus === 1) data.islike = true;
+        if (fond.fondStatus === 0) data.isdislike = true;
+      }
       response.status(200).json({data});
     } catch (error) {
       response.status(500).json({error: error.message});
