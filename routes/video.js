@@ -29,5 +29,16 @@ router.get('/like/:id', verifyToken(), videoController.like);
 router.get('/dislikes/:id', verifyToken(), videoController.dislikes);
 // 获取喜爱视频列表
 router.get('/likeList', verifyToken(), videoController.likeList);
+// 获取用户已上传视频列表
+router.get('/uploadList', verifyToken(), videoController.uploadList);
+// 删除已上传视频
+router.delete('/delete/:id', verifyToken(), videoController.delete);
+// 修改上传视频信息
+router.patch(
+  '/update/:id',
+  verifyToken(),
+  validator.update,
+  videoController.update
+);
 
 module.exports = router;

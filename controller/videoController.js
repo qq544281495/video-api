@@ -237,4 +237,51 @@ module.exports = {
       response.status(500).json({error: error.message});
     }
   },
+  // 获取用户上传视频列表
+  uploadList: async (request, response) => {
+    try {
+      let userId = request.user._id;
+      let data = await Video.find({user: userId});
+      response.status(200).json({data});
+    } catch (error) {
+      response.status(200).json({error: error.message});
+    }
+  },
+  // 删除视频
+  delete: async (request, response) => {
+    try {
+      const {id} = request.params;
+      const userId = request.user._id;
+      let data = await Video.findById(id);
+      if (data) {
+        if (data.user.equals(userId)) {
+          await Video.findByIdAndDelete(id);
+          response.status(200).json({data: {message: '视频删除成功'}});
+        } else {
+          response.status(401).json({error: '暂时无法删除视频，请稍后重试'});
+        }
+      } else {
+        response.status(404).json({error: '视频不存在'});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 修改上传视频信息
+  update: async (request, response) => {
+    try {
+      const videoId = request.params.id;
+      const userId = request.user._id;
+      const video = await Video.findOne({_id: videoId, user: userId});
+      if (video) {
+        let params = {...request.body};
+        await Video.findByIdAndUpdate(videoId, params);
+        response.status(200).json({data: {message: '视频信息修改成功'}});
+      } else {
+        response.status(404).json({error: '视频不存在'});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
 };
