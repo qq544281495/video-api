@@ -50,5 +50,7 @@ router.get(
 );
 // 获取收藏视频列表
 router.get('/collectList', verifyToken(), videoController.collectList);
+// 获取热门视频
+router.get('/hotVideo/:number', videoController.hotVideo);
 
 module.exports = router;

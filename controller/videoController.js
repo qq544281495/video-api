@@ -3,6 +3,9 @@ const Comment = require('../models/commentSchema'); // 评论数据模型
 const Fond = require('../models/fondSchema'); // 喜爱视频数据模型
 const Channel = require('../models/channelSchema'); // 频道数据模型
 const Collect = require('../models/collectSchema'); // 收藏数据模型
+const {hotIncrease, hotRank} = require('../models/redis/redisOperate'); // 视频热度增长 & 热门视频
+
+// 热门推荐机制 观看+1 喜欢+2 评论+2 收藏+3
 
 module.exports = {
   // 上传视频凭证
@@ -59,9 +62,11 @@ module.exports = {
           channel: data.user._id,
         });
         if (channel) data.subscriber = true;
-        if (fond.fondStatus === 1) data.islike = true;
-        if (fond.fondStatus === 0) data.isdislike = true;
+        if (fond && fond.fondStatus === 1) data.islike = true;
+        if (fond && fond.fondStatus === 0) data.isdislike = true;
       }
+      // 观看视频热度+1
+      await hotIncrease(id, 1);
       response.status(200).json({data});
     } catch (error) {
       response.status(500).json({error: error.message});
@@ -75,11 +80,15 @@ module.exports = {
       const content = request.body.content;
       let video = await Video.findById(videoId);
       if (video) {
-        await new Comment({
+        const commentVideo = await new Comment({
           user: userId,
           video: videoId,
           content,
         }).save();
+        if (commentVideo) {
+          // 发布评论热度+2
+          await hotIncrease(videoId, 2);
+        }
         video.comments++;
         await video.save();
         response.status(200).json({data: {message: '评论成功'}});
@@ -144,17 +153,23 @@ module.exports = {
       if (fond && fond.fondStatus === 1) {
         const fondId = fond._id;
         await Fond.findByIdAndDelete(fondId);
+        // 取消喜欢视频热度-2
+        await hotIncrease(videoId, -2);
         islike = false;
       } else if (fond && fond.fondStatus === 0) {
         fond.fondStatus = 1;
         await fond.save();
       } else {
-        await new Fond({
+        const likeVideo = await new Fond({
           user: userId,
           video: videoId,
           author: video.user,
           fondStatus: 1,
         }).save();
+        if (likeVideo) {
+          // 首次喜欢视频热度+2
+          await hotIncrease(videoId, 2);
+        }
       }
       video.likes = await Fond.countDocuments({
         video: videoId,
@@ -313,6 +328,10 @@ module.exports = {
           video: videoId,
           author: video.user,
         }).save();
+        if (collectVideo) {
+          // 收藏视频+3
+          await hotIncrease(videoId, 3);
+        }
         response.status(200).json({data: {message: '收藏视频成功'}});
       } else {
         response.status(404).json({error: '视频不存在'});
@@ -333,7 +352,11 @@ module.exports = {
           video: videoId,
         });
         if (collect) {
-          await Collect.findByIdAndDelete(collect._id);
+          const cancelVideo = await Collect.findByIdAndDelete(collect._id);
+          if (cancelVideo) {
+            // 取消收藏视频-3
+            await hotIncrease(videoId, -3);
+          }
           response.status(200).json({data: {message: '已取消收藏该视频'}});
         } else {
           response.status(401).json({error: '未收藏该视频'});
@@ -364,6 +387,26 @@ module.exports = {
         count,
       };
       response.status(200).json({data: {list, page}});
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 获取热门视频
+  hotVideo: async (request, response) => {
+    try {
+      let list = [];
+      const number = request.params.number;
+      let {rank, videoList} = await hotRank(number);
+      const data = await Video.find({
+        _id: {$in: videoList},
+      });
+      for (let item of data) {
+        let hots = rank[item.id];
+        item = item.toJSON();
+        item['hots'] = Number(hots);
+        list.push(item);
+      }
+      response.status(200).json({data: {list}});
     } catch (error) {
       response.status(500).json({error: error.message});
     }
