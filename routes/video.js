@@ -40,5 +40,15 @@ router.patch(
   validator.update,
   videoController.update
 );
+// 收藏视频
+router.get('/collect/:id', verifyToken(), videoController.collect);
+// 取消收藏视频
+router.get(
+  '/cancelCollection/:id',
+  verifyToken(),
+  videoController.cancelCollection
+);
+// 获取收藏视频列表
+router.get('/collectList', verifyToken(), videoController.collectList);
 
 module.exports = router;

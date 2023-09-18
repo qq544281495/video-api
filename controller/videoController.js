@@ -2,6 +2,7 @@ const Video = require('../models/videoSchema'); // 视频数据模型
 const Comment = require('../models/commentSchema'); // 评论数据模型
 const Fond = require('../models/fondSchema'); // 喜爱视频数据模型
 const Channel = require('../models/channelSchema'); // 频道数据模型
+const Collect = require('../models/collectSchema'); // 收藏数据模型
 
 module.exports = {
   // 上传视频凭证
@@ -240,9 +241,18 @@ module.exports = {
   // 获取用户上传视频列表
   uploadList: async (request, response) => {
     try {
+      let {pageNumber = 1, pageSize = 10} = request.body;
       let userId = request.user._id;
-      let data = await Video.find({user: userId});
-      response.status(200).json({data});
+      let list = await Video.find({user: userId})
+        .skip((pageNumber - 1) * pageSize)
+        .limit(pageSize);
+      const count = await Video.countDocuments({user: userId});
+      const page = {
+        pageNumber,
+        pageSize,
+        count,
+      };
+      response.status(200).json({data: {list, page}});
     } catch (error) {
       response.status(200).json({error: error.message});
     }
@@ -280,6 +290,80 @@ module.exports = {
       } else {
         response.status(404).json({error: '视频不存在'});
       }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 收藏视频
+  collect: async (request, response) => {
+    try {
+      const userId = request.user._id;
+      const videoId = request.params.id;
+      const video = await Video.findById(videoId);
+      if (video) {
+        let collect = await Collect.findOne({
+          user: userId,
+          video: videoId,
+        });
+        if (collect) {
+          return response.status(401).json({error: '已收藏该视频'});
+        }
+        const collectVideo = await Collect({
+          user: userId,
+          video: videoId,
+          author: video.user,
+        }).save();
+        response.status(200).json({data: {message: '收藏视频成功'}});
+      } else {
+        response.status(404).json({error: '视频不存在'});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 取消收藏视频
+  cancelCollection: async (request, response) => {
+    try {
+      const userId = request.user._id;
+      const videoId = request.params.id;
+      const video = await Video.findById(videoId);
+      if (video) {
+        const collect = await Collect.findOne({
+          user: userId,
+          video: videoId,
+        });
+        if (collect) {
+          await Collect.findByIdAndDelete(collect._id);
+          response.status(200).json({data: {message: '已取消收藏该视频'}});
+        } else {
+          response.status(401).json({error: '未收藏该视频'});
+        }
+      } else {
+        response.status(404).json({error: '视频不存在'});
+      }
+    } catch (error) {
+      response.status(500).json({error: error.message});
+    }
+  },
+  // 获取收藏视频列表
+  collectList: async (request, response) => {
+    try {
+      const userId = request.user._id;
+      let {pageNumber = 1, pageSize = 10} = request.body;
+      let list = await Collect.find({
+        user: userId,
+      })
+        .skip((pageNumber - 1) * pageSize)
+        .limit(pageSize)
+        .populate('video', '_id title description cover vodId')
+        .populate('author', 'username portrait subscribers');
+      const count = await Collect.countDocuments({user: userId});
+      const page = {
+        pageNumber,
+        pageSize,
+        count,
+      };
+      response.status(200).json({data: {list, page}});
     } catch (error) {
       response.status(500).json({error: error.message});
     }

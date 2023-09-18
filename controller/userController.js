@@ -66,8 +66,17 @@ module.exports = {
   // 获取用户列表
   list: async (request, response) => {
     try {
-      const data = await User.find();
-      response.status(200).json({data});
+      const {pageNumber = 1, pageSize = 10} = request.body;
+      const list = await User.find()
+        .skip((pageNumber - 1) * pageSize)
+        .limit(pageSize);
+      const count = await User.countDocuments();
+      const page = {
+        pageNumber,
+        pageSize,
+        count,
+      };
+      response.status(200).json({data: {list, page}});
     } catch (error) {
       response.status(500).json({error: error.message});
     }
@@ -199,13 +208,17 @@ module.exports = {
     try {
       const id = request.params.id;
       const user = await User.findById(id);
+      let {pageNumber = 1, pageSize = 10} = request.body;
       if (!user) {
         return response.status(404).json({error: '用户不存在'});
       }
       const data = await Channel.find({
         user: id,
-      }).populate('channel');
-      let subscribeList = data.map((item) => {
+      })
+        .skip((pageNumber - 1) * pageSize)
+        .limit(pageSize)
+        .populate('channel');
+      let list = data.map((item) => {
         return lodash.pick(item.channel, [
           '_id',
           'username',
@@ -213,7 +226,13 @@ module.exports = {
           'subscribers',
         ]);
       });
-      response.status(200).json({data: subscribeList});
+      const count = await Channel.countDocuments({user: id});
+      const page = {
+        pageNumber,
+        pageSize,
+        count,
+      };
+      response.status(200).json({data: {list, page}});
     } catch (error) {
       response.status(500).json({error: error.message});
     }
@@ -222,10 +241,14 @@ module.exports = {
   channelList: async (request, response) => {
     try {
       const {_id} = request.user;
+      let {pageNumber = 1, pageSize = 10} = request.body;
       const data = await Channel.find({
         channel: _id,
-      }).populate('user');
-      let channelList = data.map((item) => {
+      })
+        .skip((pageNumber - 1) * pageSize)
+        .limit(pageSize)
+        .populate('user');
+      let list = data.map((item) => {
         return lodash.pick(item.user, [
           '_id',
           'username',
@@ -233,7 +256,13 @@ module.exports = {
           'subscribers',
         ]);
       });
-      response.status(200).json({data: channelList});
+      const count = await Channel.countDocuments({channel: _id});
+      const page = {
+        pageNumber,
+        pageSize,
+        count,
+      };
+      response.status(200).json({data: {list, page}});
     } catch (error) {
       response.status(500).json({error: error.message});
     }
